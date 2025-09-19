@@ -1,0 +1,77 @@
+name: Test
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types:
+      - opened
+      - synchronize
+
+env:
+  ENVIRONMENT: testing
+  MYSQL_HOST: localhost
+  MYSQL_USER: appuser
+  MYSQL_PASSWORD: userapp
+  MYSQL_DB: db
+  MYSQL_DB_TEST: test_db
+  MYSQL_PORT: 3306
+  ALGORITHM: HS256
+  SECRET_KEY: test_secret_key
+
+
+jobs:
+
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_USER: ${{ env.MYSQL_USER }}
+          MYSQL_PASSWORD: ${{ env.MYSQL_PASSWORD }}
+          MYSQL_DATABASE: ${{ env.MYSQL_DB_TEST }}
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12.10'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+
+      - name: Change working directory to backend
+        run: cd backend
+
+      - name: Run tests
+        run: |
+          pytest --maxfail=1 --disable-warnings -q --tb=short
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm install
+
+      - name: Run Jest tests
+        run: |
+          cd frontend
+          npm run test:unit
+
+
+      
